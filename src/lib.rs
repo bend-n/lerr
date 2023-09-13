@@ -49,7 +49,8 @@ impl<'s> Source<'s> {
         self.0.split_inclusive('\n').scan(0, |s, x| {
             let pos = *s;
             *s += x.as_bytes().len();
-            Some((x.trim_matches('\n'), pos..pos + *s))
+            let s = x.trim_matches('\n');
+            Some((s, pos..pos + s.len()))
         })
     }
 }
@@ -86,7 +87,11 @@ impl<'s> Error<'s> {
 
     /// Add a label to this error
     pub fn label(&mut self, label: impl Into<Label>) -> &mut Self {
-        self.labels.push(label.into());
+        let l = label.into();
+        if self.source.0.len() < l.span.end {
+            panic!("label must be in bounds");
+        }
+        self.labels.push(l);
         self
     }
 
@@ -103,15 +108,12 @@ impl<'s> std::fmt::Display for Error<'s> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.message)?;
         let lines = self.source.0.lines().count();
-        if lines == 0 {
-            return Ok(());
-        }
         let width = lines.ilog10() as usize + 1;
         let space = " ";
         let mut found = vec![];
         for (line, (code, span)) in self.source.spans().enumerate() {
             for label in &self.labels {
-                if span.contains(&label.span.start) {
+                if span.end >= label.span.start && span.start <= label.span.start {
                     found.push(label);
                 }
             }
@@ -125,15 +127,16 @@ impl<'s> std::fmt::Display for Error<'s> {
             let about = UnicodeWidthStr::width(
                 &self.source.0[label.span.start - span.start..label.span.end - span.start],
             );
-            let padding = dbg!(UnicodeWidthStr::width(
-                &self.source.0[span.start..label.span.start]
-            ));
+            let padding = UnicodeWidthStr::width(&self.source.0[span.start..label.span.start]);
             write!(f, "\x1b[1;34;30m{space:width$} ¦ \x1b[0m",)?;
             for _ in 0..padding {
                 write!(f, " ")?;
             }
             write!(f, "\x1b[1;34;31m")?;
             for _ in 0..about {
+                write!(f, "^")?;
+            }
+            if label.span.end == label.span.start {
                 write!(f, "^")?;
             }
             write!(f, "\x1b[0m ")?;
