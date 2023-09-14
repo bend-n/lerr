@@ -15,7 +15,7 @@ let out = Error::new("Strin::new()")
     .label((0..5, "a 'strin' you say"))
     .note("i think you meant String")
     .to_string();
-println!("{out}");
+eprintln!("{out}");
 ```
 
 Please note that only one label per line is currently supported, and multiline labels are not yet supported.
