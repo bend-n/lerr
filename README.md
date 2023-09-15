@@ -18,7 +18,7 @@ e.label((0..5, "you probably meant String"))
     .label((30..37, "your π is bad"));
 eprintln!("{e}");
 // dont mind this
-assert_eq!(e.to_string(), "\n\u{1b}[1;34;30m0 │ \u{1b}[0mStrin::nouveau().i_like_tests(3.14158)\n\u{1b}[1;34;30m  ¦ \u{1b}[0m\u{1b}[1;34;31m──┬──\u{1b}[0m  \u{1b}[1;34;31m────┬────\u{1b}[0m \u{1b}[1;34;31m^\u{1b}[0m caps: I    \u{1b}[1;34;31m^^^^^^^\u{1b}[0m your π is bad\n\u{1b}[1;34;30m  ¦ \u{1b}[0m  \u{1b}[1;34;31m│\u{1b}[0m        \u{1b}[1;34;31m╰\u{1b}[0m use new()\n\u{1b}[1;34;30m  ¦ \u{1b}[0m  \u{1b}[1;34;31m╰\u{1b}[0m you probably meant String\n");
+assert_eq!(e.to_string(), "\n\u{1b}[1;34;30m0 | \u{1b}[0mStrin::nouveau().i_like_tests(3.14158)\n\u{1b}[1;34;30m  ¦ \u{1b}[0m\u{1b}[1;34;31m──┬──\u{1b}[0m  \u{1b}[1;34;31m────┬────\u{1b}[0m \u{1b}[1;34;31m^\u{1b}[0m caps: I    \u{1b}[1;34;31m^^^^^^^\u{1b}[0m your π is bad\n\u{1b}[1;34;30m  ¦ \u{1b}[0m  \u{1b}[1;34;31m│\u{1b}[0m        \u{1b}[1;34;31m╰\u{1b}[0m use new()\n\u{1b}[1;34;30m  ¦ \u{1b}[0m  \u{1b}[1;34;31m╰\u{1b}[0m you probably meant String\n");
 ```
 
 Please note that multiline labels are not yet supported.

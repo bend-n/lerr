@@ -150,7 +150,7 @@ impl<'s> std::fmt::Display for Error<'s> {
             if found.is_empty() {
                 continue;
             }
-            writeln!(f, "\x1b[1;34;30m{line:width$} │ \x1b[0m{code}")?;
+            writeln!(f, "\x1b[1;34;30m{line:width$} | \x1b[0m{code}")?;
             write!(f, "\x1b[1;34;30m{space:width$} ¦ \x1b[0m")?;
 
             // sort by width
@@ -258,7 +258,7 @@ fn display() {
         .note("\x1b[1;34;34mnote\x1b[0m: maybe python would be better for you")
         .to_string();
     println!("{out}");
-    assert_eq!(out, "\n\u{1b}[1;34;30m0 │ \u{1b}[0mvoid fn x(void) -> four {\n\u{1b}[1;34;30m  ¦ \u{1b}[0m                   \u{1b}[1;34;31m^^^^\u{1b}[0m what is 'four'?\n  \u{1b}[1;34;30m>\u{1b}[0m \u{1b}[1;34;32mhelp\u{1b}[0m: change it to 4\n  \u{1b}[1;34;30m>\u{1b}[0m \u{1b}[1;34;34mnote\u{1b}[0m: maybe python would be better for you\n");
+    assert_eq!(out, "\n\u{1b}[1;34;30m0 | \u{1b}[0mvoid fn x(void) -> four {\n\u{1b}[1;34;30m  ¦ \u{1b}[0m                   \u{1b}[1;34;31m^^^^\u{1b}[0m what is 'four'?\n  \u{1b}[1;34;30m>\u{1b}[0m \u{1b}[1;34;32mhelp\u{1b}[0m: change it to 4\n  \u{1b}[1;34;30m>\u{1b}[0m \u{1b}[1;34;34mnote\u{1b}[0m: maybe python would be better for you\n");
 }
 #[test]
 fn inline() {
@@ -267,5 +267,5 @@ fn inline() {
         .label((0..2, r#"forgot '"#))
         .to_string();
     println!("{out}");
-    assert_eq!(out, "\n\u{1b}[1;34;30m0 │ \u{1b}[0mim out of this worl\n\u{1b}[1;34;30m  ¦ \u{1b}[0m\u{1b}[1;34;31m^^\u{1b}[0m forgot '    \u{1b}[1;34;31m^^^^\u{1b}[0m forgot d\n");
+    assert_eq!(out, "\n\u{1b}[1;34;30m0 | \u{1b}[0mim out of this worl\n\u{1b}[1;34;30m  ¦ \u{1b}[0m\u{1b}[1;34;31m^^\u{1b}[0m forgot '    \u{1b}[1;34;31m^^^^\u{1b}[0m forgot d\n");
 }
