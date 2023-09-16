@@ -7,6 +7,7 @@
     clippy::dbg_macro,
     missing_docs
 )]
+use anstream::adapter::strip_str;
 use comat::{cwrite, cwriteln};
 use config::Charset;
 use std::{fmt::Write, ops::Range};
@@ -115,7 +116,7 @@ impl<'s> Error<'s> {
 
     #[cfg(test)]
     fn monochrome(&self) -> String {
-        anstream::adapter::strip_str(&self.to_string()).to_string()
+        strip_str(&self.to_string()).to_string()
     }
 }
 
@@ -157,7 +158,10 @@ impl<'s> std::fmt::Display for Error<'s> {
                         point += 1;
                     }
                     // ^^^ [<this part length>]
-                    let msglen = UnicodeWidthStr::width(candidate.message.as_str());
+                    let mut msglen = 0;
+                    for chr in strip_str(candidate.message.as_str()) {
+                        msglen += UnicodeWidthStr::width(chr);
+                    }
                     found.push((candidate, msglen, point));
                 } else {
                     i += 1;
