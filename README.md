@@ -10,15 +10,15 @@ heres the code for the sample above.
 feel free to add coloring with your favorite coloring crate, or just use raw ansi sequences.
 
 ```rust
+use comat::cformat as cmt;
 use lerr::Error;
 let mut e = Error::new("Strin::nouveau().i_like_tests(3.14158)");
-e.label((0..5, "you probably meant String"))
-    .label((7..16, "use new()"))
-    .label((17..18, "caps: I"))
-    .label((30..37, "your π is bad"));
+e.message(cmt!(r#"{bold_red}error{reset}: unknown function {bold_red}String::new(){reset}"#))
+    .label((0..5, cmt!("you probably meant {black}String{reset}")))
+    .label((7..16, cmt!("use {green}new(){reset}")))
+    .label((17..18, cmt!("caps: {bold_cyan}I{reset}")))
+    .label((30..37, cmt!("your {bold_yellow}π{reset} is bad")));
 eprintln!("{e}");
-// dont mind this
-assert_eq!(e.to_string(), "\n\u{1b}[1;34;30m0 | \u{1b}[0mStrin::nouveau().i_like_tests(3.14158)\n\u{1b}[1;34;30m  ¦ \u{1b}[0m\u{1b}[1;34;31m──┬──\u{1b}[0m  \u{1b}[1;34;31m────┬────\u{1b}[0m \u{1b}[1;34;31m^\u{1b}[0m caps: I    \u{1b}[1;34;31m^^^^^^^\u{1b}[0m your π is bad\n\u{1b}[1;34;30m  ¦ \u{1b}[0m  \u{1b}[1;34;31m│\u{1b}[0m        \u{1b}[1;34;31m╰\u{1b}[0m use new()\n\u{1b}[1;34;30m  ¦ \u{1b}[0m  \u{1b}[1;34;31m╰\u{1b}[0m you probably meant String\n");
 ```
 
 Please note that multiline labels are not yet supported.

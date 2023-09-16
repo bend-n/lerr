@@ -1,17 +1,18 @@
 #![doc = include_str!("../README.md")]
+#![forbid(unsafe_code)]
 #![warn(
-    clippy::multiple_unsafe_ops_per_block,
     clippy::missing_const_for_fn,
     clippy::redundant_pub_crate,
-    clippy::missing_safety_doc,
     clippy::imprecise_flops,
-    unsafe_op_in_unsafe_fn,
     clippy::dbg_macro,
     missing_docs
 )]
-use std::ops::Range;
-
+use comat::{cwrite, cwriteln};
+use config::Charset;
+use std::{fmt::Write, ops::Range};
 use unicode_width::UnicodeWidthStr;
+
+pub mod config;
 
 /// Span of bytes in the source
 pub type Span = Range<usize>;
@@ -57,15 +58,18 @@ impl<'s> Source<'s> {
 
 /// The error builder that this crate is all about
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct Error<'s> {
+    /// The message
+    pub message: String,
     /// Source text
     pub source: Source<'s>,
     /// Labels we hold
     pub labels: Vec<Label>,
     /// Notes
     pub notes: Vec<Note>,
-    /// The message
-    pub message: String,
+    /// The config
+    pub charset: Charset,
 }
 
 impl<'s> Error<'s> {
@@ -77,7 +81,14 @@ impl<'s> Error<'s> {
             source: Source(source),
             notes: vec![],
             message: String::new(),
+            charset: Charset::unicode(),
         }
+    }
+
+    /// Sets the charset
+    pub fn charset(&mut self, charset: Charset) -> &mut Self {
+        self.charset = charset;
+        self
     }
 
     /// Add a message to this error
@@ -89,9 +100,7 @@ impl<'s> Error<'s> {
     /// Add a label to this error
     pub fn label(&mut self, label: impl Into<Label>) -> &mut Self {
         let l = label.into();
-        if self.source.0.len() < l.span.end {
-            panic!("label must be in bounds");
-        }
+        assert!(self.source.0.len() >= l.span.end, "label must be in bounds");
         self.labels.push(l);
         self
     }
@@ -103,17 +112,24 @@ impl<'s> Error<'s> {
         });
         self
     }
+
+    #[cfg(test)]
+    fn monochrome(&self) -> String {
+        anstream::adapter::strip_str(&self.to_string()).to_string()
+    }
 }
 
 macro_rules! wrpeat {
-    ($to:ident, $n:expr, $fmt:literal $(, $arg:expr)* $(,)?) => {
-        for _ in 0..$n { write!($to, $fmt $(, $arg)*)? }
+    ($to:ident, $n:expr, $fmt:expr) => {
+        for _ in 0..$n {
+            write!($to, "{}", $fmt)?
+        }
     };
 }
 
 impl<'s> std::fmt::Display for Error<'s> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.message)?;
+        cwriteln!(f, "{:reset}", self.message)?;
         let lines = self.source.0.lines().count();
         let width = lines.ilog10() as usize + 1;
         let space = " ";
@@ -150,8 +166,16 @@ impl<'s> std::fmt::Display for Error<'s> {
             if found.is_empty() {
                 continue;
             }
-            writeln!(f, "\x1b[1;34;30m{line:width$} | \x1b[0m{code}")?;
-            write!(f, "\x1b[1;34;30m{space:width$} ¦ \x1b[0m")?;
+            cwriteln!(
+                f,
+                "{bold_black}{line:width$} {} {reset}{code}",
+                self.charset.column_line
+            )?;
+            cwrite!(
+                f,
+                "{space:width$} {:bold_black} {reset}",
+                self.charset.column_broken_line
+            )?;
 
             // sort by width
             found.sort_unstable_by(|(a, ..), (b, ..)| match a.span.start.cmp(&b.span.start) {
@@ -176,36 +200,40 @@ impl<'s> std::fmt::Display for Error<'s> {
                 {
                     let p = about.saturating_sub(1);
                     let middle = (p + 1) / 2;
-                    write!(f, "\x1b[1;34;31m")?;
-                    wrpeat!(f, middle, "─");
-                    write!(f, "┬")?;
-                    wrpeat!(f, p - middle, "─");
-                    write!(f, "\x1b[0m")?;
+                    cwrite!(f, "{bold_red}")?;
+                    wrpeat!(f, middle, self.charset.spanning_out);
+                    f.write_char(self.charset.spanning_mid)?;
+                    wrpeat!(f, p - middle, self.charset.spanning_out);
+                    cwrite!(f, "{reset}")?;
                     middles.push((l, middle, msglen));
                     position += about;
                     continue;
                 }
-                write!(f, "\x1b[1;34;31m")?;
-                wrpeat!(f, about, "^");
+                cwrite!(f, "{bold_red}")?;
+                wrpeat!(f, about, self.charset.spanning);
                 position += about;
-                write!(f, "\x1b[0m ")?;
-                position += 1;
-                write!(f, "{}", l.message)?;
-                position += msglen;
+                cwrite!(f, " {:reset}", l.message)?;
+                position += 1 + msglen;
             }
             writeln!(f)?;
-            extras(self, middles, line_span, f, width)?;
+            extras(self, middles, line_span, f, width, self.charset)?;
             fn extras(
                 e: &Error,
                 mut unfinished: Vec<(&Label, usize, usize)>,
                 line_span: Span,
                 f: &mut std::fmt::Formatter<'_>,
                 width: usize,
+                charset: Charset,
             ) -> std::fmt::Result {
                 if unfinished.is_empty() {
                     return Ok(());
                 }
-                write!(f, "\x1b[1;34;30m{:width$} ¦ \x1b[0m", " ")?;
+                cwrite!(
+                    f,
+                    "{:width$} {:bold_black} ",
+                    " ",
+                    charset.column_broken_line
+                )?;
                 let mut position = 0;
                 let mut i = 0;
                 while i < unfinished.len() {
@@ -225,26 +253,26 @@ impl<'s> std::fmt::Display for Error<'s> {
                         .any(|(b, ..)| l.span.start + connection + msglen + 2 > b.span.start)
                     {
                         // if it will, leave it for the next line (this is a recursive fn)
-                        write!(f, "\x1b[1;34;31m│\x1b[0m ")?;
+                        cwrite!(f, "{:bold_red} ", charset.out_extension)?;
                         position += 2;
                         i += 1;
                         continue;
                     }
-                    write!(f, "\x1b[1;34;31m╰\x1b[0m ")?;
+                    cwrite!(f, "{:bold_red} ", charset.out_end)?;
                     position += 2;
-                    write!(f, "{}", l.message)?;
+                    cwrite!(f, "{:reset}", l.message)?;
                     position += msglen;
                     unfinished.remove(i);
                 }
                 writeln!(f)?;
-                extras(e, unfinished, line_span, f, width)
+                extras(e, unfinished, line_span, f, width, charset)
             }
 
             found.clear();
         }
 
         for note in &self.notes {
-            writeln!(f, "{space:width$} \x1b[1;34;30m>\x1b[0m {}", note.message)?;
+            cwriteln!(f, "{space:width$} {bold_black}>{reset} {}", note.message)?;
         }
         Ok(())
     }
@@ -253,19 +281,59 @@ impl<'s> std::fmt::Display for Error<'s> {
 #[test]
 fn display() {
     let out = Error::new("void fn x(void) -> four {\nwierd};")
+        .message("attempted to use string as type")
         .label((19..23, "what is 'four'?"))
-        .note("\x1b[1;34;32mhelp\x1b[0m: change it to 4")
-        .note("\x1b[1;34;34mnote\x1b[0m: maybe python would be better for you")
-        .to_string();
+        .note("help: change it to 4")
+        .note("note: maybe python would be better for you")
+        .charset(Charset::ascii())
+        .monochrome();
     println!("{out}");
-    assert_eq!(out, "\n\u{1b}[1;34;30m0 | \u{1b}[0mvoid fn x(void) -> four {\n\u{1b}[1;34;30m  ¦ \u{1b}[0m                   \u{1b}[1;34;31m^^^^\u{1b}[0m what is 'four'?\n  \u{1b}[1;34;30m>\u{1b}[0m \u{1b}[1;34;32mhelp\u{1b}[0m: change it to 4\n  \u{1b}[1;34;30m>\u{1b}[0m \u{1b}[1;34;34mnote\u{1b}[0m: maybe python would be better for you\n");
+    assert_eq!(
+        out,
+        r"attempted to use string as type
+0 | void fn x(void) -> four {
+  :                    ^^^^ what is 'four'?
+  > help: change it to 4
+  > note: maybe python would be better for you
+"
+    );
 }
 #[test]
 fn inline() {
     let out = Error::new("im out of this worl")
+        .message("such spelling")
         .label((15..19, "forgot d"))
         .label((0..2, r#"forgot '"#))
-        .to_string();
+        .charset(Charset::ascii())
+        .monochrome();
     println!("{out}");
-    assert_eq!(out, "\n\u{1b}[1;34;30m0 | \u{1b}[0mim out of this worl\n\u{1b}[1;34;30m  ¦ \u{1b}[0m\u{1b}[1;34;31m^^\u{1b}[0m forgot '    \u{1b}[1;34;31m^^^^\u{1b}[0m forgot d\n");
+    assert_eq!(
+        out,
+        r"such spelling
+0 | im out of this worl
+  : ^^ forgot '    ^^^^ forgot d
+"
+    );
+}
+
+#[test]
+fn outline() {
+    let e = Error::new("Strin::nouveau().i_like_tests(3.14158)")
+        .message("unknown method String::new")
+        .label((0..5, "you probably meant String"))
+        .label((7..16, "use new()"))
+        .label((17..18, "caps: I"))
+        .label((30..37, "your π is bad"))
+        .charset(Charset::ascii())
+        .monochrome();
+    println!("{e}");
+    assert_eq!(
+        e,
+        r"unknown method String::new
+0 | Strin::nouveau().i_like_tests(3.14158)
+  : --.--  ----.---- ^ caps: I    ^^^^^^^ your π is bad
+  :   |        \ use new()
+  :   \ you probably meant String
+"
+    );
 }
