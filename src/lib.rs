@@ -284,8 +284,8 @@ impl<'s> std::fmt::Display for Error<'s> {
             found.clear();
         }
 
-        for note in &self.notes {
-            cwriteln!(f, "{space:width$} {bold_black}>{reset} {}", note.message)?;
+        for Note { message } in &self.notes {
+            cwriteln!(f, "{space:width$} {bold_black}{}{reset} {message}", self.charset.note)?;
         }
         Ok(())
     }
