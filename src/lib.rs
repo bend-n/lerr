@@ -35,6 +35,15 @@ impl<S: ToString> From<(Span, S)> for Label {
     }
 }
 
+impl<S: ToString> From<(&Span, S)> for Label {
+    fn from((span, m): (&Span, S)) -> Self {
+        Self {
+            span: span.clone(),
+            message: m.to_string(),
+        }
+    }
+}
+
 /// A note at the end of the diagnostic
 #[derive(Debug)]
 pub struct Note {
