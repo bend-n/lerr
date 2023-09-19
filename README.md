@@ -7,7 +7,7 @@ extremely barebones error diagnostics for lang-dev
 ## usage
 
 heres the code for the sample above.
-feel free to add coloring with your favorite coloring crate, or just use raw ansi sequences.
+coloring is done with the [comat](https://docs.rs/comat) crate.
 
 ```rust
 use comat::cformat as cmt;
